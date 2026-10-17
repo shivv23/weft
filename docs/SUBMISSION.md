@@ -72,7 +72,7 @@ percentiles and `errors=0`.
   and coordination all derive from graph structure, not from a side index.
 - **Deployable / reproducible** — `docker compose up --build` brings up FalkorDB +
   API + worker; a fully offline demo and test suite need no API keys. It is also
-  **live at <https://superapp2026.duckdns.org/weft>**.
+  **live at <https://superapp2026.duckdns.org/weft>** (opens the web console).
 - **New work during the event** — the entire `weft` codebase was written for this
   submission.
 
@@ -82,10 +82,20 @@ The stack is deployed (FalkorDB + API + worker) behind a Caddy TLS gateway:
 
 | What | URL |
 |---|---|
-| Base | `https://superapp2026.duckdns.org/weft` |
+| Web console (landing) | `https://superapp2026.duckdns.org/weft/` |
+| Base (`/weft` → 302 → console) | `https://superapp2026.duckdns.org/weft` |
 | Health | `https://superapp2026.duckdns.org/weft/api/v1/health` |
 | Swagger UI | `https://superapp2026.duckdns.org/weft/docs` |
 | OpenAPI | `https://superapp2026.duckdns.org/weft/openapi.json` |
+
+The `/weft/` landing page is a **single-file, dependency-free web console** (vanilla
+JS, no CDN or build step — served from the API) with tabs for **Recall** (score
+breakdown bars, matched channels and provenance paths per hit), **Sessions**
+(create/load, append messages, timeline, consolidate), **Handoffs** (atomic
+claim/complete/reject inbox, create, agent directory), **Blackboard** (scoped
+compare-and-swap writes) and **Stats** (node counts, durable job queue, tenant
+switcher). The tenant is selected with the `X-Tenant-Id` header, persisted
+client-side.
 
 Select a tenant with the `X-Tenant-Id` header (default `demo`). The seeded `demo`
 tenant ships with a two-agent scenario (triage → billing-specialist) that has

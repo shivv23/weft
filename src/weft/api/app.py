@@ -15,8 +15,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
+from weft.api.console import INDEX_HTML
 from weft.config import get_settings
 from weft.errors import ClaimError, ConflictError, NotFoundError, ValidationError, WeftError
 from weft.models import (
@@ -306,6 +307,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router, prefix="/api/v1")
+
+
+def _console() -> HTMLResponse:
+    return HTMLResponse(INDEX_HTML)
+
+
+@app.get("/", include_in_schema=False)
+async def console_root() -> HTMLResponse:
+    return _console()
+
+
+@app.get("/console", include_in_schema=False)
+async def console_page() -> HTMLResponse:
+    return _console()
 
 
 @app.exception_handler(WeftError)

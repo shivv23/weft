@@ -61,6 +61,9 @@ episode through the entity graph, not string matching.
   *why* it was returned, including the traversal path.
 - **Context pack** — one call returns everything an agent needs at the start of a
   turn: relevant memories, pending handoffs, blackboard state, session summary.
+- **Web console & MCP** — a dependency-free single-page console served by the API
+  (at `/`) to explore recall, sessions, handoffs, blackboard and stats; plus the
+  same capabilities exposed as MCP tools for any agent.
 
 ---
 
@@ -99,7 +102,7 @@ and tenant isolation — then cleans up after itself.
 ### 4. Hit the REST API
 
 ```bash
-uv run weft api   # http://localhost:8080/docs
+uv run weft api   # console at http://localhost:8080/ · OpenAPI at http://localhost:8080/docs
 ```
 
 ```bash
@@ -108,8 +111,8 @@ SID=$(curl -s localhost:8080/api/v1/sessions -H 'content-type: application/json'
   -d '{"user_id":"u_nova","agent_id":"triage"}' | jq -r .id)
 
 curl -s localhost:8080/api/v1/sessions/$SID/messages -H 'content-type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Acme Corp was double-charged for the enterprise plan."},
-                   {"role":"assistant","content":"I have issued a refund of RF-9001 for 2400 USD."}]}'
+  -d '[{"role":"user","content":"Acme Corp was double-charged for the enterprise plan."},
+       {"role":"assistant","content":"I have issued a refund of RF-9001 for 2400 USD."}]'
 
 # consolidate (or let the worker do it) and recall across everything
 curl -s localhost:8080/api/v1/sessions/$SID/consolidate -X POST
