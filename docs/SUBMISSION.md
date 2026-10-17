@@ -109,5 +109,5 @@ uv run pytest tests/ -v        # integration tests against live FalkorDB
 ## Media
 
 - Demo video: _<add link>_
-- Repository: _<add link>_
+- Repository: <https://github.com/shivv23/weft>
 - Blog post: _<add link>_
