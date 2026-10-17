@@ -41,6 +41,20 @@ logger = logging.getLogger(__name__)
 _TOKENS_MAX = 12
 _TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_\-.]{1,}")
 
+# Question words carry no meaning for entity-name matching: "was" would match
+# any entity whose name happens to contain those letters.
+_GRAPH_STOPWORDS = frozenset(
+    "a an and are as at be by did do does for from had has have how in is it of on or "
+    "the to was were what when where which who whom why will with".split()
+)
+
+# Graph-channel weights. A name match only says "this query is about X"; the
+# episodes and facts reached *through* X are what actually answer it, so they
+# rank above the bare entity.
+_GRAPH_ENTITY = 0.6
+_GRAPH_EPISODE = 0.85
+_GRAPH_FACT = 0.9
+
 _KIND_BY_LABEL = {
     "Episode": "episode",
     "Fact": "fact",
@@ -158,21 +172,29 @@ class HybridRetriever:
                 )
 
         async def _graph_channel() -> None:
-            tokens = [t.lower() for t in _TOKEN_RE.findall(query)[:8]]
+            tokens = [
+                t.lower()
+                for t in _TOKEN_RE.findall(query)
+                if len(t) > 2 and t.lower() not in _GRAPH_STOPWORDS
+            ][:8]
             if not tokens:
                 return
             conds = " OR ".join(f"toLower(ent.name) CONTAINS $t{i}" for i in range(len(tokens)))
             params: dict[str, Any] = {f"t{i}": t for i, t in enumerate(tokens)}
             params["limit"] = overfetch
             try:
+                # facts are reified as (s)-[:SUBJ]->(Fact)-[:OBJ]->(o): look at both
+                # sides, otherwise "Acme Corp tier gold" is missed when asking about Acme
                 res = await self.graph.ro_query(
                     f"""
                     MATCH (ent:Entity)
                     WHERE {conds}
                     OPTIONAL MATCH (ep:Episode)-[:MENTIONS]->(ent)
                     OPTIONAL MATCH (f:Fact)-[:OBJ]->(ent)
+                    OPTIONAL MATCH (ent)-[:SUBJ]->(sf:Fact)
                     OPTIONAL MATCH (ent)-[r]-(neighbor:Entity)
-                    RETURN ent, collect(DISTINCT ep)[..5], collect(DISTINCT f)[..5],
+                    RETURN ent, collect(DISTINCT ep)[..5],
+                           collect(DISTINCT f)[..5] + collect(DISTINCT sf)[..5],
                            collect(DISTINCT neighbor)[..5], collect(DISTINCT type(r))[..5]
                     LIMIT $limit
                     """,
@@ -185,8 +207,27 @@ class HybridRetriever:
                 ent_props = ent_node.properties
                 ent_id = str(ent_props.get("id") or ulid())
                 ent_name = str(ent_props.get("name") or "")
-                _add(candidates, "entity", ent_id, ent_props, channel="graph", graph_score=1.0)
+                _add(
+                    candidates,
+                    "entity",
+                    ent_id,
+                    ent_props,
+                    channel="graph",
+                    graph_score=_GRAPH_ENTITY,
+                )
                 path_base = f"query → entity '{ent_name}'"
+                # an entity with no description reads as "Acme Corp (Organization) —";
+                # show what the graph knows about it instead
+                known = [
+                    str(f.properties.get("text"))
+                    for f in facts or []
+                    if f is not None
+                    and f.properties.get("text")
+                    and not f.properties.get("archived")
+                    and not f.properties.get("valid_to")
+                ]
+                if known:
+                    candidates[("entity", ent_id)]["known_facts"] = known[:4]
                 for ep in eps or []:
                     if ep is None:
                         continue
@@ -199,7 +240,7 @@ class HybridRetriever:
                         str(props.get("id") or ulid()),
                         props,
                         channel="graph",
-                        graph_score=0.7,
+                        graph_score=_GRAPH_EPISODE,
                         path=f"{path_base} → MENTIONS ← episode",
                     )
                 for f in facts or []:
@@ -214,7 +255,7 @@ class HybridRetriever:
                         str(props.get("id") or ulid()),
                         props,
                         channel="graph",
-                        graph_score=0.8,
+                        graph_score=_GRAPH_FACT,
                         path=f"{path_base} → fact via '{props.get('predicate', '')}'",
                     )
                 if neighbors:
@@ -230,7 +271,7 @@ class HybridRetriever:
                             ent_id,
                             ent_props,
                             channel="graph",
-                            graph_score=1.0,
+                            graph_score=_GRAPH_ENTITY,
                             path=f"{path_base} → neighbors: {pairs}",
                         )
 
@@ -242,6 +283,8 @@ class HybridRetriever:
         for (kind, cid), cand in candidates.items():
             props = cand["props"]
             text, ts, base_quality = _text_ts_quality(kind, props)
+            if kind == "entity" and not props.get("description") and cand.get("known_facts"):
+                text = f"{text.rstrip(' —')} — {'; '.join(cand['known_facts'])}"
             if user_id and kind == "episode" and props.get("user_id") not in (None, user_id):
                 continue
             if agent_id and kind == "episode" and props.get("agent_id") not in (None, agent_id):
