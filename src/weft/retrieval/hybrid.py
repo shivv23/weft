@@ -44,8 +44,44 @@ _TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_\-.]{1,}")
 # Question words carry no meaning for entity-name matching: "was" would match
 # any entity whose name happens to contain those letters.
 _GRAPH_STOPWORDS = frozenset(
-    "a an and are as at be by did do does for from had has have how in is it of on or "
-    "the to was were what when where which who whom why will with".split()
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "did",
+        "do",
+        "does",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "how",
+        "in",
+        "is",
+        "it",
+        "of",
+        "on",
+        "or",
+        "the",
+        "to",
+        "was",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "whom",
+        "why",
+        "will",
+        "with",
+    ]
 )
 
 # Graph-channel weights. A name match only says "this query is about X"; the
