@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+# Builds the Weft runtime image with the uv-maintained lockfile.
+.venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.git
+.gitignore
+.env
+*.md
+!README.md
+tests
+docs
+bench
+examples
+Dockerfile
+docker-compose.yml
+.dockerignore

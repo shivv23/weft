@@ -1,0 +1,87 @@
+# Production overlay for running Weft on a single host behind a reverse proxy.
+#
+# Differences from the dev `docker-compose.yml`:
+#   * no service publishes a port on 0.0.0.0 — the API binds to loopback only, so
+#     only the host's reverse proxy (e.g. Caddy/nginx) can reach it;
+#   * FalkorDB is entirely internal (no published ports);
+#   * per-service memory limits keep the stack well-behaved on a small VM;
+#   * FalkorDB graph-module tuning is pinned.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Then point your reverse proxy at 127.0.0.1:8080 (see docs/DEPLOYMENT.md).
+
+name: weft
+
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: weft-falkordb
+    environment:
+      FALKORDB_ARGS: >-
+        MAX_QUEUED_QUERIES 1000
+        TIMEOUT 10000
+        RESULTSET_SIZE 10000
+        CACHE_SIZE 128
+        THREAD_COUNT 2
+        OMP_THREAD_COUNT 2
+    volumes:
+      - falkordb-data:/data
+    mem_limit: 512m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  weft-api:
+    build: .
+    image: weft:local
+    container_name: weft-api
+    command: ["api"]
+    environment:
+      WEFT_FALKOR_HOST: falkordb
+      WEFT_FALKOR_PORT: "6379"
+      WEFT_EMBEDDINGS_PROVIDER: ${WEFT_EMBEDDINGS_PROVIDER:-hash}
+      WEFT_LLM_PROVIDER: ${WEFT_LLM_PROVIDER:-none}
+      WEFT_OPENAI_API_KEY: ${WEFT_OPENAI_API_KEY:-}
+      WEFT_ANTHROPIC_API_KEY: ${WEFT_ANTHROPIC_API_KEY:-}
+      WEFT_API_KEYS: ${WEFT_API_KEYS:-}
+      # Listen on all interfaces *inside* the container; exposure is limited by
+      # the host-side loopback binding below and the host firewall/proxy.
+      WEFT_API_HOST: 0.0.0.0
+      WEFT_API_PORT: "8080"
+      # Public path prefix the reverse proxy strips (Caddy: handle_path /weft/*).
+      WEFT_ROOT_PATH: ${WEFT_ROOT_PATH:-/weft}
+      # Keep the worker in its own service for independent scaling.
+      WEFT_WORKERS_IN_API: "false"
+    ports:
+      - "127.0.0.1:8080:8080"
+    mem_limit: 384m
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  weft-worker:
+    build: .
+    image: weft:local
+    container_name: weft-worker
+    command: ["worker"]
+    environment:
+      WEFT_FALKOR_HOST: falkordb
+      WEFT_FALKOR_PORT: "6379"
+      WEFT_EMBEDDINGS_PROVIDER: ${WEFT_EMBEDDINGS_PROVIDER:-hash}
+      WEFT_LLM_PROVIDER: ${WEFT_LLM_PROVIDER:-none}
+      WEFT_OPENAI_API_KEY: ${WEFT_OPENAI_API_KEY:-}
+      WEFT_ANTHROPIC_API_KEY: ${WEFT_ANTHROPIC_API_KEY:-}
+    mem_limit: 320m
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  falkordb-data:
