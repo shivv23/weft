@@ -314,6 +314,6 @@ tests/                  integration tests
 
 ## License
 
-MIT. Built for the **FalkorDB Graph Hacks** hackathon.
+MIT — see [LICENSE](LICENSE). Built for the **FalkorDB Graph Hacks** hackathon.
 
 > Weft — *the graph-native memory and coordination layer for multi-agent systems.*
