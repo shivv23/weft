@@ -238,9 +238,9 @@ function toast(msg,err){
   setTimeout(()=>d.remove(),err?7000:3200);
 }
 async function api(method,p,body){
-  const t=$("tenant").value.trim();
+  const tenant=$("tenant").value.trim();
   const h={};
-  if(t)h["X-Tenant-Id"]=t;
+  if(tenant)h["X-Tenant-Id"]=tenant;
   else if(p!=="/tenants")throw new Error("no tenant selected - create or register one first");
   let payload;
   if(body!==undefined){h["content-type"]="application/json";payload=typeof body==="string"?body:JSON.stringify(body);}
