@@ -103,6 +103,37 @@ async def test_conversation_consolidation_and_recall():
 
 
 @pytest.mark.asyncio
+async def test_list_sessions_and_all_state():
+    w = Weft()
+    t = await _tenant()
+    h = w.for_tenant(t)
+
+    s1 = await h.create_session(user_id="u1", agent_id="a1", title="one")
+    await h.append_messages(
+        s1.id,
+        [{"role": "user", "content": "first"}, {"role": "assistant", "content": "ok"}],
+    )
+    s2 = await h.create_session(user_id="u2", title="two")
+
+    sessions = await h.list_sessions()
+    ids = {s.id for s in sessions}
+    assert {s1.id, s2.id} <= ids
+    assert [s.id for s in await h.list_sessions(user_id="u2")] == [s2.id]
+    assert [s.id for s in await h.list_sessions(agent_id="a1")] == [s1.id]
+    assert [s.id for s in await h.list_sessions(status="open")].count(s1.id) == 1
+
+    await h.set_state(scope="global", key="k", value={"a": 1})
+    await h.set_state(scope="user:u1", key="k", value={"b": 2})
+    scopes = {e.scope for e in await h.all_state()}
+    assert {"global", "user:u1"} <= scopes
+
+    assert t in await w.list_tenants()
+
+    await w.drop_tenant(t)
+    await w.aclose()
+
+
+@pytest.mark.asyncio
 async def test_blackboard_cas_and_shared_state():
     w = Weft()
     t = await _tenant()

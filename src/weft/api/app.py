@@ -77,6 +77,17 @@ async def create_session(payload: SessionCreate, h=Depends(require_handle)):
     return await h.create_session(**payload.model_dump())
 
 
+@router.get("/sessions")
+async def list_sessions(
+    user_id: str | None = None,
+    agent_id: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    h=Depends(require_handle),
+):
+    return await h.list_sessions(user_id=user_id, agent_id=agent_id, status=status, limit=limit)
+
+
 @router.get("/sessions/{session_id}")
 async def get_session(session_id: str, h=Depends(require_handle)):
     s = await h.get_session(session_id)
@@ -167,6 +178,11 @@ async def set_state(
         expected_version=payload.expected_version,
         updated_by=updated_by,
     )
+
+
+@router.get("/state")
+async def all_state(limit: int = 500, h=Depends(require_handle)):
+    return await h.all_state(limit=limit)
 
 
 @router.get("/state/{scope}/{key}")

@@ -172,6 +172,20 @@ class WeftHandle:
         data = await conversation.get_session(g, session_id)
         return SessionOut(**data) if data else None
 
+    async def list_sessions(
+        self,
+        *,
+        user_id: str | None = None,
+        agent_id: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[SessionOut]:
+        g = await self._graph()
+        rows = await conversation.list_sessions(
+            g, user_id=user_id, agent_id=agent_id, status=status, limit=limit
+        )
+        return [SessionOut(**r) for r in rows]
+
     async def close_session(self, session_id: str) -> SessionOut:
         g = await self._graph()
         return SessionOut(**await conversation.close_session(g, session_id))
@@ -394,6 +408,10 @@ class WeftHandle:
     async def scope_state(self, scopes: list[str]) -> list[BlackboardEntry]:
         g = await self._graph()
         return [BlackboardEntry(**e) for e in await bb.get_scope(g, scopes=scopes)]
+
+    async def all_state(self, *, limit: int = 500) -> list[BlackboardEntry]:
+        g = await self._graph()
+        return [BlackboardEntry(**e) for e in await bb.list_all(g, limit=limit)]
 
     async def delete_state(self, *, scope: str, key: str) -> bool:
         g = await self._graph()

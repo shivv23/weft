@@ -94,8 +94,10 @@ breakdown bars, matched channels and provenance paths per hit), **Sessions**
 (create/load, append messages, timeline, consolidate), **Handoffs** (atomic
 claim/complete/reject inbox, create, agent directory), **Blackboard** (scoped
 compare-and-swap writes) and **Stats** (node counts, durable job queue, tenant
-switcher). The tenant is selected with the `X-Tenant-Id` header, persisted
-client-side.
+switcher). Every input is populated from the live API — tenants from `/tenants`,
+agents from `/agents`, sessions from `/sessions`, blackboard scopes from `/state`
+— so the console shows real tenant data with no hardcoded fixtures. The tenant is
+selected with the `X-Tenant-Id` header, persisted client-side.
 
 Select a tenant with the `X-Tenant-Id` header (default `demo`). The seeded `demo`
 tenant ships with a two-agent scenario (triage → billing-specialist) that has

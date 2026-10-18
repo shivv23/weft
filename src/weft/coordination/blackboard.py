@@ -147,6 +147,20 @@ async def get_scope(
     return rows
 
 
+async def list_all(graph: Graph, *, limit: int = 500) -> list[dict[str, Any]]:
+    """Every blackboard entry across all scopes (inspection / console use)."""
+    res = await graph.ro_query(
+        """
+        MATCH (b:Blackboard)
+        RETURN b.scope, b.key, b.value, b.version, b.updated_by, b.updated_at
+        ORDER BY b.updated_at DESC
+        LIMIT $limit
+        """,
+        params={"limit": max(1, min(2000, limit))},
+    )
+    return [_row(r) for r in res.result_set]
+
+
 async def delete_entry(graph: Graph, *, scope: str, key: str) -> bool:
     _validate_scope(scope)
     res = await graph.query(

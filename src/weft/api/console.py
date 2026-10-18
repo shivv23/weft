@@ -68,7 +68,7 @@ pre{background:#0e141c;border:1px solid var(--border);border-radius:8px;padding:
 <body>
 <header>
   <h1><span>Weft</span> Console</h1>
-  <div class="field"><label>Tenant (X-Tenant-Id)</label><input id="tenant" value="demo" style="width:150px"></div>
+  <div class="field"><label>Tenant (X-Tenant-Id)</label><select id="tenant" style="min-width:160px"></select></div>
   <div class="field"><label>API base</label><input id="apibase" readonly style="width:240px"></div>
   <div style="flex:1"></div>
   <a href="docs" target="_blank">Swagger &#8599;</a>
@@ -86,10 +86,10 @@ pre{background:#0e141c;border:1px solid var(--border);border-radius:8px;padding:
 <section class="panel active" id="p-recall">
   <div class="card">
     <div class="row">
-      <div class="field" style="flex:1;min-width:260px"><label>Query</label><input id="rq" placeholder="why was Acme Corp refunded?"></div>
+      <div class="field" style="flex:1;min-width:260px"><label>Query</label><input id="rq" placeholder="semantic query"></div>
       <div class="field"><label>k</label><input id="rk" value="5" style="width:70px"></div>
-      <div class="field"><label>user_id</label><input id="ruser" placeholder="optional" style="width:150px"></div>
-      <div class="field"><label>agent_id</label><input id="ragent" placeholder="optional" style="width:150px"></div>
+      <div class="field"><label>user_id (optional)</label><input id="ruser" style="width:170px"></div>
+      <div class="field"><label>agent_id (optional)</label><select id="ragent" style="min-width:160px"></select></div>
       <button class="primary" onclick="doRecall()">Recall</button>
     </div>
     <p class="hint">Hybrid recall: HNSW vector search + full-text + Cypher traversal, re-ranked by recency, importance and usage, with a score breakdown and provenance path per hit.</p>
@@ -100,13 +100,14 @@ pre{background:#0e141c;border:1px solid var(--border);border-radius:8px;padding:
 <section class="panel" id="p-sessions">
   <div class="card">
     <div class="row">
-      <div class="field"><label>user_id</label><input id="su" value="u_nova"></div>
-      <div class="field"><label>agent_id</label><input id="sa" value="triage"></div>
-      <div class="field"><label>title</label><input id="st" value="Billing"></div>
+      <div class="field"><label>user_id</label><input id="su"></div>
+      <div class="field"><label>agent_id (optional)</label><select id="sa"></select></div>
+      <div class="field"><label>title (optional)</label><input id="st"></div>
       <button class="primary" onclick="createSession()">Create session</button>
     </div>
     <div class="row" style="margin-top:12px">
-      <div class="field" style="flex:1;min-width:260px"><label>Session id</label><input id="sid"></div>
+      <div class="field" style="flex:1;min-width:240px"><label>Session id</label><input id="sid"></div>
+      <div class="field"><label>Load existing</label><select id="slist" onchange="if(this.value){$('sid').value=this.value;loadSession();loadMessages()}"></select></div>
       <button onclick="loadSession()">Load</button>
       <button onclick="loadMessages()">Messages</button>
       <button onclick="loadTimeline()">Timeline</button>
@@ -116,7 +117,7 @@ pre{background:#0e141c;border:1px solid var(--border);border-radius:8px;padding:
   <div class="card" id="sinfo"><span class="hint">No session loaded.</span></div>
   <div class="card">
     <label class="hint">Append messages (JSON array of {role, content, meta?})</label>
-    <textarea id="smsg">[{"role":"user","content":"Acme Corp was double charged."},{"role":"assistant","content":"Issued refund RF-9001."}]</textarea>
+    <textarea id="smsg" placeholder='[{"role":"user","content":"..."}]'></textarea>
     <div class="row" style="margin-top:8px"><button class="primary" onclick="appendMsgs()">Append</button></div>
   </div>
   <div id="sout"></div>
@@ -125,15 +126,15 @@ pre{background:#0e141c;border:1px solid var(--border);border-radius:8px;padding:
 <section class="panel" id="p-handoffs">
   <div class="card">
     <div class="row">
-      <div class="field"><label>Your agent id</label><input id="hagent" value="billing-specialist" style="width:220px"></div>
-      <div class="field"><label>inbox status</label><input id="hstatus" value="pending" style="width:130px"></div>
+      <div class="field"><label>Your agent id</label><select id="hagent" style="min-width:200px"></select></div>
+      <div class="field"><label>inbox status</label><select id="hstatus"><option>pending</option><option>claimed</option><option>completed</option><option>rejected</option></select></div>
       <button class="primary" onclick="loadInbox()">Load inbox</button>
       <button onclick="loadAgents()">List agents</button>
     </div>
     <div class="row" style="margin-top:12px">
-      <div class="field"><label>from_agent</label><input id="hfrom" value="triage"></div>
-      <div class="field"><label>to_agent</label><input id="hto" value="billing-specialist"></div>
-      <div class="field" style="flex:1"><label>title</label><input id="htitle" value="Confirm refund"></div>
+      <div class="field"><label>from_agent</label><select id="hfrom"></select></div>
+      <div class="field"><label>to_agent</label><select id="hto"></select></div>
+      <div class="field" style="flex:1"><label>title</label><input id="htitle"></div>
       <button onclick="createHandoff()">Create handoff</button>
     </div>
     <p class="hint">Claims are atomic: only the first agent to claim succeeds, every other claim gets a 409.</p>
@@ -144,14 +145,14 @@ pre{background:#0e141c;border:1px solid var(--border);border-radius:8px;padding:
 <section class="panel" id="p-blackboard">
   <div class="card">
     <div class="row">
-      <div class="field" style="flex:1;min-width:260px"><label>Scopes (exact names, comma separated)</label><input id="bscopes" value="global"></div>
+      <div class="field" style="flex:1;min-width:220px"><label>Scopes (exact, comma separated; blank = all)</label><input id="bscopes"></div>
       <button class="primary" onclick="loadScope()">List state</button>
     </div>
     <div class="row" style="margin-top:12px">
-      <div class="field"><label>scope</label><input id="bscope" value="global"></div>
-      <div class="field"><label>key</label><input id="bkey" value="goal"></div>
+      <div class="field"><label>scope</label><input id="bscope" placeholder="global"></div>
+      <div class="field"><label>key</label><input id="bkey"></div>
       <div class="field"><label>expected_version (blank = create)</label><input id="bver" style="width:180px"></div>
-      <div class="field" style="flex:1;min-width:220px"><label>value (JSON)</label><input id="bval" value='{"status":"running"}'></div>
+      <div class="field" style="flex:1;min-width:220px"><label>value (JSON)</label><input id="bval"></div>
       <button onclick="setState()">Set state</button>
     </div>
     <p class="hint">Scopes are matched exactly: use <code>global</code>, <code>session:&lt;id&gt;</code>, <code>user:&lt;id&gt;</code>, <code>agent:&lt;id&gt;</code> or <code>team:&lt;name&gt;</code>. Writes are compare-and-swap: set expected_version to the version you read to avoid lost updates.</p>
@@ -177,8 +178,57 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"
 const base=location.pathname.replace(/\/index\.html$/,"").replace(/\/console$/,"").replace(/\/+$/,"");
 const API=base+"/api/v1";
 $("apibase").value=API;
-try{const t=localStorage.getItem("weft.tenant");if(t)$("tenant").value=t}catch(e){}
-$("tenant").addEventListener("input",e=>{try{localStorage.setItem("weft.tenant",e.target.value)}catch(e){}});
+function fillSelect(id,ids,optional){
+  const sel=$(id);if(!sel)return;
+  const cur=sel.value;
+  let html=optional?"<option value=''></option>":"";
+  html+=ids.map(x=>"<option>"+esc(x)+"</option>").join("");
+  sel.innerHTML=html;
+  if(cur && (ids.includes(cur)||cur===""))sel.value=cur;
+  else if(!optional && ids.length)sel.value=ids[0];
+}
+async function populateTenants(){
+  try{
+    const d=await api("GET","/tenants");
+    const sel=$("tenant");
+    let saved=null;try{saved=localStorage.getItem("weft.tenant")}catch(e){}
+    sel.innerHTML=d.tenants.map(t=>"<option>"+esc(t)+"</option>").join("");
+    if(saved && d.tenants.includes(saved))sel.value=saved;
+    else if(!d.tenants.length)toast("no tenants yet - register an agent or create a session",true);
+    return d.tenants;
+  }catch(e){toast(e.message,true);return []}
+}
+async function populateAgents(){
+  if(!$("tenant").value)return [];
+  try{
+    const d=await api("GET","/agents");
+    const ids=d.map(a=>a.id);
+    fillSelect("ragent",ids,true);
+    fillSelect("sa",ids,true);
+    fillSelect("hagent",ids,false);
+    fillSelect("hfrom",ids,false);
+    fillSelect("hto",ids,false);
+    return d;
+  }catch(e){toast(e.message,true);return []}
+}
+async function populateSessions(){
+  if(!$("tenant").value)return;
+  try{
+    const d=await api("GET","/sessions?limit=50");
+    const sel=$("slist");const cur=sel.value;
+    sel.innerHTML="<option value=''></option>"+d.map(s=>"<option value='"+esc(s.id)+"'>"+esc(String(s.id).slice(-8))+" &middot; "+esc(s.user_id)+" &middot; "+esc(s.status)+" &middot; "+s.message_count+"msg</option>").join("");
+    if(cur)sel.value=cur;
+  }catch(e){}
+}
+async function refreshAll(){
+  await populateTenants();
+  await populateAgents();
+  await populateSessions();
+}
+$("tenant").addEventListener("change",()=>{
+  try{localStorage.setItem("weft.tenant",$("tenant").value)}catch(e){}
+  populateAgents();populateSessions();
+});
 
 function toast(msg,err){
   const d=document.createElement("div");
@@ -188,7 +238,10 @@ function toast(msg,err){
   setTimeout(()=>d.remove(),err?7000:3200);
 }
 async function api(method,p,body){
-  const h={"X-Tenant-Id":$("tenant").value.trim()||"demo"};
+  const t=$("tenant").value.trim();
+  const h={};
+  if(t)h["X-Tenant-Id"]=t;
+  else if(p!=="/tenants")throw new Error("no tenant selected - create or register one first");
   let payload;
   if(body!==undefined){h["content-type"]="application/json";payload=typeof body==="string"?body:JSON.stringify(body);}
   const r=await fetch(API+p,{method,headers:h,body:payload});
@@ -252,6 +305,7 @@ async function createSession(){
     if($("st").value)b.title=$("st").value;
     const d=await api("POST","/sessions",b);
     $("sid").value=d.id;renderSession(d);toast("session created: "+d.id);
+    populateSessions();populateAgents();
   }catch(e){toast(e.message,true)}
 }
 async function loadSession(){
@@ -323,9 +377,11 @@ async function hact(id,act){
 
 async function loadScope(){
   try{
-    const scopes=$("bscopes").value.split(",").map(s=>s.trim()).filter(Boolean);
-    const d=await api("POST","/state/scope",scopes);
-    if(!d.length){$("bout").innerHTML="<p class='hint'>No entries in these scopes.</p>";return}
+    const raw=$("bscopes").value.trim();
+    const d = raw
+      ? await api("POST","/state/scope",raw.split(",").map(s=>s.trim()).filter(Boolean))
+      : await api("GET","/state?limit=500");
+    if(!d.length){$("bout").innerHTML="<p class='hint'>No state entries.</p>";return}
     $("bout").innerHTML="<div class='card'><h3>Shared state</h3><table><tr><th>scope</th><th>key</th><th>ver</th><th>updated_by</th><th>value</th></tr>"
       +d.map(e=>"<tr><td>"+esc(e.scope)+"</td><td>"+esc(e.key)+"</td><td>"+e.version+"</td><td>"+esc(e.updated_by||"-")+"</td><td><code>"+esc(JSON.stringify(e.value))+"</code></td></tr>").join("")
       +"</table></div>";
@@ -370,6 +426,7 @@ document.querySelectorAll("#tabs button").forEach(b=>b.addEventListener("click",
   $("p-"+b.dataset.t).classList.add("active");
 }));
 $("rq").addEventListener("keydown",e=>{if(e.key==="Enter")doRecall()});
+refreshAll();
 </script>
 </body>
 </html>

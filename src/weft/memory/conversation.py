@@ -76,7 +76,10 @@ async def get_session(graph: Graph, session_id: str) -> dict[str, Any] | None:
     )
     if not res.result_set:
         return None
-    row = res.result_set[0]
+    return _session_from_row(res.result_set[0])
+
+
+def _session_from_row(row: Any) -> dict[str, Any]:
     return {
         "id": row[0],
         "user_id": row[1],
@@ -88,6 +91,35 @@ async def get_session(graph: Graph, session_id: str) -> dict[str, Any] | None:
         "message_count": int(row[7] or 0),
         "meta": _loads(row[8]),
     }
+
+
+async def list_sessions(
+    graph: Graph,
+    *,
+    user_id: str | None = None,
+    agent_id: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    res = await graph.ro_query(
+        """
+        MATCH (s:Session)
+        WHERE ($user_id IS NULL OR s.user_id = $user_id)
+          AND ($agent_id IS NULL OR s.agent_id = $agent_id)
+          AND ($status IS NULL OR s.status = $status)
+        RETURN s.id, s.user_id, s.agent_id, s.title, s.status, s.started_at,
+               s.last_activity_at, s.message_count, s.meta
+        ORDER BY s.last_activity_at DESC
+        LIMIT $limit
+        """,
+        params={
+            "user_id": user_id,
+            "agent_id": agent_id,
+            "status": status,
+            "limit": max(1, min(500, limit)),
+        },
+    )
+    return [_session_from_row(r) for r in res.result_set]
 
 
 async def close_session(graph: Graph, session_id: str) -> dict[str, Any]:
