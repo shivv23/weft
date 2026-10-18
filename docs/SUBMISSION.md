@@ -87,6 +87,10 @@ The stack is deployed (FalkorDB + API + worker) behind a Caddy TLS gateway:
 | Health | `https://superapp2026.duckdns.org/weft/api/v1/health` |
 | Swagger UI | `https://superapp2026.duckdns.org/weft/docs` |
 | OpenAPI | `https://superapp2026.duckdns.org/weft/openapi.json` |
+| Short link | <https://tinyurl.com/3zdx9ymx> (301 → the console) |
+
+The short link is a plain TinyURL alias — it never expires (TinyURL redirects are
+permanent) and just hides the hostname for easier sharing.
 
 The `/weft/` landing page is a **single-file, dependency-free web console** (vanilla
 JS, no CDN or build step — served from the API) with tabs for **Recall** (score
