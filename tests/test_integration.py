@@ -348,6 +348,60 @@ async def test_message_sequence_agent_id_and_scoped_recall():
 
 
 @pytest.mark.asyncio
+async def test_consolidation_worker_stops_when_graph_disappears():
+    """FalkorDB auto-creates a graph on any query, so a worker that keeps
+    polling a dropped tenant would silently resurrect it. It must stop."""
+    from weft.processing.consolidator import ConsolidationWorker
+
+    w = Weft()
+    t = await _tenant()
+    await w.for_tenant(t).add_fact(subject="A", predicate="owns", object="B")
+
+    worker = ConsolidationWorker(
+        graph=await w.client.graph_for(t),
+        graph_exists=lambda: asyncio.sleep(0, False),
+    )
+    assert await worker.run_once() == 0
+    assert worker._stopped.is_set()
+
+    await w.drop_tenant(t)
+    await w.aclose()
+
+
+@pytest.mark.asyncio
+async def test_worker_pool_detaches_dropped_tenants():
+    from weft.config import Settings
+    from weft.graph.connection import GraphClient
+    from weft.processing.worker import WorkerPool
+
+    w = Weft()
+    t = await _tenant()
+    await w.for_tenant(t).add_fact(subject="A", predicate="owns", object="B")
+
+    client = GraphClient()
+    pool = WorkerPool(client, settings=Settings(worker_tenant_refresh_seconds=0.05))
+    await pool._reconcile()
+    assert t in pool._workers
+    assert await client.exists(t)
+
+    # silence the poller first so the drop is not raced by an in-flight query
+    for worker in pool._workers.values():
+        worker.stop()
+
+    await w.drop_tenant(t)
+    assert t not in await w.list_tenants()
+    assert not await client.exists(t)
+
+    await pool._reconcile()
+    assert t not in pool._workers
+    assert t not in pool._tasks
+
+    await pool.stop()
+    await client.close()
+    await w.aclose()
+
+
+@pytest.mark.asyncio
 async def test_recall_explanation_contains_channels_and_paths():
     w = Weft()
     t = await _tenant()

@@ -19,6 +19,7 @@ import asyncio
 import contextlib
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from falkordb.asyncio.graph import Graph
@@ -228,6 +229,7 @@ class ConsolidationWorker:
         llm: LLMProvider | None = None,
         settings: Settings | None = None,
         worker_id: str | None = None,
+        graph_exists: Callable[[], Awaitable[bool]] | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.graph = graph
@@ -241,6 +243,7 @@ class ConsolidationWorker:
             settings=self.settings,
         )
         self.worker_id = worker_id or f"worker-{uuid.uuid4().hex[:8]}"
+        self.graph_exists = graph_exists
         self._stopped = asyncio.Event()
 
     async def run_forever(self) -> None:
@@ -262,6 +265,13 @@ class ConsolidationWorker:
         self._stopped.set()
 
     async def run_once(self) -> int:
+        if self.graph_exists is not None and not await self.graph_exists():
+            logger.info(
+                "consolidation worker %s: tenant graph is gone, stopping",
+                self.worker_id,
+            )
+            self._stopped.set()
+            return 0
         await queue.reap_stale(self.graph)
         jobs = await queue.claim(
             self.graph,

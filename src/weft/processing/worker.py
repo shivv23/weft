@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from functools import partial
 
 from weft.config import Settings, get_settings
 from weft.graph.connection import GraphClient
@@ -63,18 +64,39 @@ class WorkerPool:
             await self.stop()
 
     async def _reconcile(self) -> None:
-        tenants = await self.client.list_tenants()
-        for tenant in tenants:
-            if tenant in self._tasks:
-                continue
+        tenants = set(await self.client.list_tenants())
+        for tenant in sorted(tenants - set(self._tasks)):
             graph = await self.client.graph_for(tenant)
-            worker = ConsolidationWorker(graph=graph, settings=self.settings)
+            worker = ConsolidationWorker(
+                graph=graph,
+                settings=self.settings,
+                graph_exists=partial(self.client.exists, tenant),
+            )
             self._workers[tenant] = worker
             self._tasks[tenant] = asyncio.create_task(
                 worker.run_forever(), name=f"weft-worker:{tenant}"
             )
             self._known.add(tenant)
             logger.info("worker attached to tenant %r", tenant)
+        for tenant in sorted(set(self._tasks) - tenants):
+            await self._detach(tenant)
+
+    async def _detach(self, tenant: str) -> None:
+        """Stop and forget the worker for a tenant whose graph no longer exists.
+
+        FalkorDB auto-creates a graph on any query, so a worker that outlives
+        its tenant would silently resurrect the deleted graph on the next poll.
+        """
+        task = self._tasks.pop(tenant, None)
+        worker = self._workers.pop(tenant, None)
+        self._known.discard(tenant)
+        if worker is not None:
+            worker.stop()
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await task
+        logger.info("worker detached from removed tenant %r", tenant)
 
     async def _maintenance_loop(self) -> None:
         interval = max(30.0, self.settings.maintenance_interval_seconds)
@@ -83,7 +105,10 @@ class WorkerPool:
                 await asyncio.wait_for(self._stopped.wait(), timeout=interval)
             if self._stopped.is_set():
                 break
+            current = set(await self.client.list_tenants())
             for tenant, worker in list(self._workers.items()):
+                if tenant not in current:
+                    continue
                 try:
                     stats = await worker.run_maintenance()
                     logger.info("maintenance ran for tenant %r: %s", tenant, stats)

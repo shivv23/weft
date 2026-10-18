@@ -105,6 +105,11 @@ class GraphClient:
         names = await db.list_graphs()
         return sorted(n.removeprefix("weft_") for n in names if n.startswith("weft_"))
 
+    async def exists(self, tenant: str) -> bool:
+        """True if the tenant's graph currently exists in FalkorDB."""
+        db = await self.connect()
+        return tenant_graph_name(tenant) in await db.list_graphs()
+
     async def drop_tenant(self, tenant: str) -> bool:
         """Delete a tenant's entire memory graph. Destructive; used by tests/ops."""
         name = tenant_graph_name(tenant)
